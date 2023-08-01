@@ -1,0 +1,29 @@
+#df1 = read_dataframe('Variance & Average')
+import pandas as pd
+from datetime import datetime
+
+df1 = pd.read_excel('CustomerJourney_Forecasting_week_breakup.xlsx')
+ 
+for (region, week), group_df in df1.groupby(['CC Region', 'Week']):
+  group_df = group_df.sort_values('Month')
+  start_index = 0
+  end_index = len(group_df)
+
+  for i in range(start_index, end_index): 
+    # For Jan, Feb, March
+    if i<3:
+      sum_i = group_df['Variance PY'].iloc[i-3:].sum()+group_df['Variance CY'].iloc[:i].sum()
+    # For Apr-Dec
+    else:
+      sum_i = df1.at[group_df.index[i-1],'Variance CY'] + df1.at[group_df.index[i-2],'Variance CY']+ df1.at[group_df.index[i-3],'Variance CY']
+      ##sum_i = group_df['Variance CY'].iloc[i-3:i].sum()
+
+    # to evaluate sum_i - df1.at[group_df.index[i], 'sum_i'] = sum_i
+    df1.at[group_df.index[i], 'CY-Predicted'] = group_df.at[group_df.index[i], 'Average PY'] * (1 + (sum_i + group_df.at[group_df.index[i], 'Variance PY']) / 4)
+    if df1.at[group_df.index[i], 'Variance CY'] == -1:
+      df1.at[group_df.index[i], 'Variance CY'] = (df1.at[group_df.index[i], 'CY-Predicted'] - group_df.at[group_df.index[i], 'Last Year']) / group_df.at[group_df.index[i], 'Last Year']
+      
+df1.sort_values(by=['CC Region', 'Month', 'Week'])
+
+# write a data frame so it's available to the next action
+#write_dataframe(df1)
