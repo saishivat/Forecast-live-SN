@@ -3,8 +3,11 @@ import pandas as pd
 from datetime import datetime
 
 df1 = pd.read_excel('CustomerJourney_Forecasting_week_breakup.xlsx')
- 
-for (month, region), group_df in df1.groupby(['Month','Region']):
+
+df1['Variance PY']= df1['Variance PY'].fillna(0)
+df1['Variance CY']= df1['Variance CY'].fillna(0)
+    
+for (month, region), group_df in df1.groupby(['Month','CC Region']):
   group_df = group_df.sort_values('Week')
   start_index = 0
   end_index = len(group_df)
@@ -23,7 +26,15 @@ for (month, region), group_df in df1.groupby(['Month','Region']):
     if df1.at[group_df.index[i], 'Variance CY'] == -1:
       df1.at[group_df.index[i], 'Variance CY'] = (df1.at[group_df.index[i], 'CY-Predicted'] - group_df.at[group_df.index[i], 'Last Year']) / group_df.at[group_df.index[i], 'Last Year']
       
-df1.sort_values(by=['Month','Region', 'Week'])
+"""
+if ((df1['CY-Predicted']-df1['Previous year'])/df1['Previous year']).any() > 0.5:
+    df1['Test'] = 1
+else:
+    df1['Test'] = 0
+df2 =df1[df1['Test'] == 0]
+(df2.sort_values(by=['Month','CC Region', 'Week']))
+"""
+(df1.sort_values(by=['Month','CC Region', 'Week']))
 
 # write a data frame so it's available to the next action
 #write_dataframe(df1)
