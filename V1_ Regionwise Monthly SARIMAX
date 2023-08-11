@@ -4,8 +4,8 @@ end_date ='01/1/2024'
 
 #Change parameters for model enhancement
 Parameters= {
-    'UK':[[2,1,2],[0,1,2,6]],
-    'North America':[[1,2,1],[0,1,2,6]],
+    'UK':[[0,1,1],[1,1,0,18]],
+    'North America':[[0,1,1],[1,1,0,6]],
     'EU':[[2,1,2],[0,1,2,6]],
     '0':[[2,1,2],[0,1,2,6]]}
 
