@@ -9,6 +9,7 @@ Parameters= {
     'EU':[[2,1,2],[0,1,2,6]],
     '0':[[2,1,2],[0,1,2,6]]}
 
+# Parameter = 'Region': [[p,d,q], [sp,sd,sq,seasonal time period ]]
 #--------------------------------------------------------------------------------------------
 #data = read_dataframe('Variance & Average')
 import pandas as pd 
