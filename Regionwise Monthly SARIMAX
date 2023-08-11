@@ -1,0 +1,101 @@
+#Enter start and end dates for the forecast
+start_date = '08/1/2023'
+end_date ='01/1/2024'
+
+#Change parameters for model enhancement
+Parameters= {
+    'UK':[[2,1,2],[0,1,2,6]],
+    'North America':[[1,2,1],[0,1,2,6]],
+    'EU':[[2,1,2],[0,1,2,6]],
+    '0':[[2,1,2],[0,1,2,6]]}
+
+#--------------------------------------------------------------------------------------------
+#data = read_dataframe('Variance & Average')
+import pandas as pd 
+data = pd.read_excel('fpath.xlsx')
+import numpy as np
+#Model imports
+import statsmodels.api as sm
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# handle unwanted warnings
+import warnings
+warnings.filterwarnings(action='ignore',message='')
+#------------------------------------------------------------------------------------------------
+data['date'] = pd.to_datetime(dict(year=data.Year, month=data.Month, day='01'))
+
+new_Date = pd.date_range(start=start_date, end=end_date, freq='MS').tolist()
+
+region = data['CC Region'].unique()
+#print(region,len(region))
+
+# Accuracy metrics
+def forecast_accuracy(forecast, actual):
+    mape = np.mean(np.abs(forecast - actual)/np.abs(actual))  # MAPE
+    accuracy = (1-mape)*100 
+    return({'mape':mape, "Accuracy%":accuracy})
+
+def get_regionwise_forecast(df):
+    #Removing August month due to bias in current month
+    df = df[df['date']<'2023-08-01'] #Change here dynamic
+    
+    df.sort_values(by='date', inplace = True) 
+    df.reset_index(inplace=True,drop=True)
+    # Set the 'Date' column as the index
+    monthly_data = df[['date','Calls Offered']].set_index('date')
+
+    train_size = int(len(df) * 0.85)  # 85% for training, 15% for testing
+
+    train = df.iloc[:train_size]
+    test = df.iloc[train_size:]
+    #print(train.shape,test.shape)
+
+    d= Parameters
+    #Hyperparametrs
+    x = df['CC Region'].unique()[0] #Get region
+    reg = d[x]
+    p = reg[0][0]
+    d = reg[0][1]
+    q = reg[0][2]
+    
+    sp = reg[1][0]
+    sd = reg[1][1]
+    sq = reg[1][2]
+    ss = reg[1][3]
+    
+    #print(p,d,q,sp,sd,sq,ss)
+
+    #--------------------------------------------------------------------------------------------------------------
+    
+    #MODEL Training
+    model = SARIMAX(train['Calls Offered'],order=(p,d,q),seasonal_order=(sp,sd,sq,ss),enforce_invertibility=False)
+    results = model.fit()
+    # results.summary()
+
+    start = len(train)
+    end = len(train) + len(test) - 1
+    predictions = results.predict(start=start,end=end,dynamic=False)
+    acc = forecast_accuracy(predictions,test['Calls Offered'])
+    
+    #--------------------------------------------------------------------------------------------------------------
+
+    f_model = SARIMAX(df['Calls Offered'],order=(p,d,q),seasonal_order=(sp,sd,sq,ss),enforce_invertibility=False)
+    f_results = f_model.fit()
+
+    new_d = {'date': new_Date,'forecast': list(f_results.predict(start=df.shape[0],end=df.shape[0]+5,dynamic=False))}
+    new_df = pd.DataFrame(new_d)
+    new_df.reset_index(drop=True,inplace=True)
+    new_df["Accuracy"] = round(acc['Accuracy%'],1)
+    new_df["CC Region"] = df['CC Region'].unique()[0]
+
+    return new_df
+    return({'mape':mape, "Accuracy%":accuracy})
+
+output = pd.DataFrame()
+
+for x in region:
+    df = data[data['CC Region']==x]
+    model_res = get_regionwise_forecast(df)
+    output = output.append(model_res)
+
+print(output)
