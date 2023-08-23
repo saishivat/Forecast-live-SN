@@ -1,0 +1,63 @@
+from statsmodels import *
+# Import the domomagic package into the script 
+from domomagic import *
+
+# read data from inputs into a data frame
+data = read_dataframe('Customer Journey_AGG_temp_to_del')
+
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import pandas as pd
+import numpy as np
+import warnings
+warnings.filterwarnings(action='ignore', message='')
+
+data['date']  = pd.to_datetime(dict(year=data.Year, month=data.Month, day='01'))
+
+Parameters= {
+    'UK':[[1,1,0],[1,1,0,9]],
+    'North America':[[1,0,0],[1,1,0,12]],
+    'EU':[[0,1,0],[1,1,0,12]],
+    '0':[[1,0,0],[0,1,0,12]]}
+
+"""
+Parameters= {'UK':[[1,1,0],[1,1,1,9]],
+  'North America':[[1,0,0],[1,1,0,12]],
+  'EU':[[0,1,0],[1,1,0,12]],
+  '0':[[1,0,0],[0,1,0,12]]}
+"""
+def get_regionwise_forecast(data):
+  data = data[data['date']<'2023-8-01']
+  data.sort_values(by='date', inplace=True) 
+  data.reset_index(inplace=True, drop=True)
+  monthly_data = data[['date', 'Calls Answered']].set_index('date')
+
+  d=Parameters
+  x=data['CC Region'].unique()[0]
+  reg=d[x]
+  p=reg[0][0]
+  d=reg[0][1]
+  q=reg[0][2]
+  P=reg[1][0]
+  D=reg[1][1]
+  Q=reg[1][2]
+  S=reg[1][3]
+
+  model = SARIMAX(monthly_data, order = (p,d,q), seasonal_order = (P,D,Q,S), seasonal = True, m=S)
+  results = model.fit()
+
+  sarima_predict = results.get_forecast(steps = 6)
+  sarima_mean = sarima_predict.predicted_mean
+  
+  new_df = {'date':sarima_mean.index,'predicted': sarima_mean,'CC Region':x }
+  new_df= pd.DataFrame(new_df)
+
+  return new_df
+
+output = pd.DataFrame()
+
+for region in data['CC Region'].unique():
+  predictions = get_regionwise_forecast(data[data['CC Region']==region])
+  output = output.append(predictions.reset_index(drop=True))
+
+# write a data frame so it's available to the next action
+write_dataframe(output)
