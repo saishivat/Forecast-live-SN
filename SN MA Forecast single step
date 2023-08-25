@@ -1,0 +1,54 @@
+# Import the domomagic package into the script 
+#from domomagic import *
+import pandas as pd
+
+# read data from inputs into a data frame
+df1 = pd.read_excel('/content/Unpivot.xlsx')
+
+# Create an empty DataFrame to store the new rows
+new_df = pd.DataFrame()
+start_date = '09/1/2023'
+end_date ='05/1/2024'
+
+for region in df1['CC Region'].unique():
+    new_Date = pd.date_range(start= start_date, end=end_date, freq='MS').tolist()
+
+    # Create a DataFrame with the new dates
+    new_data = pd.DataFrame({'date': new_Date})
+    new_data['Month'] = new_data['date'].dt.month
+    new_data['Month Name'] = new_data['date'].dt.strftime('%B')
+    new_data['Year'] = new_data['date'].dt.year
+    new_data['CC Region'] = region  # Set the 'CC Region' column
+    new_data['Calls Answered']=0
+
+    # Append the new data for this 'CC Region' to the main DataFrame
+    new_df = pd.concat([new_df, new_data])
+
+# Concatenate the new data with your existing DataFrame
+df1 = pd.concat([df1, new_df])
+
+# Reset the index
+df1.reset_index(drop=True, inplace=True)
+
+df1.sort_values(by =['CC Region','Year', 'Month'],inplace=True)
+
+# write your script here
+for (region), group_df in df1.groupby(['CC Region']):
+  start_index = 12
+  end_index = len(group_df)
+  
+  for i in range(start_index, end_index): 
+    df1.at[group_df.index[i], 'Variance CY'] = (df1.at[group_df.index[i], 'Calls Answered']-df1.at[group_df.index[i-12], 'Calls Answered'])/df1.at[group_df.index[i-12], 'Calls Answered']
+    df1.at[group_df.index[i], 'Variance LY'] = df1.at[group_df.index[i-12],'Variance CY']
+    df1.at[group_df.index[i], 'Average LY'] = (df1.at[group_df.index[i-12], 'Calls Answered']+df1.at[group_df.index[i-24], 'Calls Answered'])/2
+    sum_i = df1.at[group_df.index[i-1],'Variance CY'] + df1.at[group_df.index[i-2],'Variance CY']+ df1.at[group_df.index[i-3],'Variance CY']
+    df1.at[group_df.index[i], 'sum_i'] = sum_i
+
+    df1.at[group_df.index[i], 'CY-Predicted'] = df1.at[group_df.index[i], 'Average LY'] * (1 + (sum_i + df1.at[group_df.index[i], 'Variance LY']) / 4)
+    if df1.at[group_df.index[i], 'Variance CY'] == -1:
+       df1.at[group_df.index[i], 'Variance CY'] = (df1.at[group_df.index[i], 'CY-Predicted'] - df1.at[group_df.index[i-12], 'Calls Answered']) / df1.at[group_df.index[i-12], 'Calls Answered']
+
+#Output
+df1=df1.drop(columns=['Variance CY', 'Variance LY', 'sum_i', 'Average LY','Relevant Date','date'])
+
+print(df1[:40])
