@@ -1,17 +1,23 @@
-# Import the domomagic package into the script 
+# Import the domomagic package into the script
 #from domomagic import *
 import pandas as pd
 
 # read data from inputs into a data frame
 df1 = pd.read_excel('/content/Unpivot weekly.xlsx')
-
+#df1['Calls Answered'] =  df1['Calls Answered'].replace(0, method='bfill')
+df1 = df1[df1['Calls Answered'] != 0]
 # Create an empty DataFrame to store the new rows
 new_df = pd.DataFrame()
-start_Week = df1[df1['Year']=='2023']['Week'].max()
-end_Week = start_Week+26
+year = df1['Year'].max() 
+start_week= df1[df1['Year']==df1['Year'].max()]['Week'].max()+1
+
+start_date = pd.to_datetime(f"{year}-W{start_week}-1", format="%Y-W%U-%w")
+end_date = start_date+ pd.DateOffset(days=182)
+
+ # Assuming you want to consider the last year in the data
 
 for region in df1['CC Region'].unique():
-    new_Date = pd.date_range(start= start_Week, end=end_Week, freq='W').tolist()
+    new_Date = pd.date_range(start= start_date, end=end_date, freq='W').tolist()
 
     # Create a DataFrame with the new dates
     new_data = pd.DataFrame({'date': new_Date})
@@ -31,20 +37,18 @@ for region in df1['CC Region'].unique():
 df1 = pd.concat([df1, new_df])
 
 # Reset the index
+df1.sort_values(by =['CC Region','Year', 'Week'],inplace=True)
+#df1.drop(columns=['Month','Month Name'],inplace=True)
 df1.reset_index(drop=True, inplace=True)
-df1.sort_values(by =['CC Region','Year', 'Month', 'Week'],inplace=True)
-print(df1[180:220])
 
-df1['weekmonth'] = df1['Week']+ df1['Month']
-
-df1.sort_values(by =['CC Region','Year', 'weekmonth'],inplace=True)
+#df1['weekmonth'] = df1['Week']+ df1['Month']
 
 # write your script here
 for (region), group_df in df1.groupby(['CC Region']):
   start_index = 52
   end_index = len(group_df)
-  
-  for i in range(start_index, end_index): 
+
+  for i in range(start_index, end_index):
     df1.at[group_df.index[i], 'Variance CY'] = (df1.at[group_df.index[i], 'Calls Answered']-df1.at[group_df.index[i-52], 'Calls Answered'])/df1.at[group_df.index[i-52], 'Calls Answered']
     df1.at[group_df.index[i], 'Variance LY'] = df1.at[group_df.index[i-52],'Variance CY']
     df1.at[group_df.index[i], 'Average LY'] = (df1.at[group_df.index[i-52], 'Calls Answered']+df1.at[group_df.index[i-104], 'Calls Answered'])/2
@@ -57,6 +61,8 @@ for (region), group_df in df1.groupby(['CC Region']):
     if pd.isnull(df1.at[group_df.index[i], 'Variance CY']):
        df1.at[group_df.index[i], 'Variance CY']=0
 #Output
-#df1=df1.drop(columns=['Variance CY', 'Variance LY', 'sum_i', 'Average LY'])
+df1=df1.drop(columns=['Variance CY', 'Variance LY', 'sum_i', 'Average LY'])
 
+df1['Date'] = df1.apply(lambda row: pd.to_datetime(f"{row['Year']}-W{row['Week']}-6", format="%Y-W%U-%w"), axis=1)
+df1.info()
 print(df1[150:200])
